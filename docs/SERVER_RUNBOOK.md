@@ -360,7 +360,7 @@ git push -u github main
 
 - Снова проверьте, что **`.env`** и секреты **не** в коммите (`git status`).
 - Если `push` отклонён («fetch first»), выполните `git pull … --rebase`, разрешите конфликты при необходимости (`git add …`, `git rebase --continue`), затем снова `git push`.
-- После успешного `push` на **VPS** нужно обновить код отдельно — см. **раздел 8.4**.
+- После успешного `push` на **VPS** обновите код (раздел **8.4**) или одним запуском с ПК — раздел **8.5**.
 
 ### 8.3. SSH-ключ для GitHub (удобнее, чем пароль)
 
@@ -406,7 +406,110 @@ pip install -e .
 sudo systemctl restart tg-mini-app-api.service tg-mini-app-bot.service
 ```
 
+**Одной командой** (скрипт в репозитории `deploy/server-update.sh` — сам переходит в корень проекта относительно своего расположения):
+
+```bash
+cd /srv/tg_mini_app
+bash deploy/server-update.sh
+```
+
+Если remote на GitHub называется `github`, а не `origin`:
+
+```bash
+GIT_REMOTE=github bash deploy/server-update.sh
+```
+
+Только обновить код и зависимости, **без** перезапуска systemd:
+
+```bash
+NO_SYSTEMD_RESTART=1 bash deploy/server-update.sh
+```
+
+Все примеры выше — **синтаксис bash** (сессия SSH на Ubuntu). В **PowerShell на Windows** префикс `ПЕРЕМЕННАЯ=значение` перед командой **не** работает: PowerShell воспринимает его как имя команды. Если запускаете тот же скрипт через **Git Bash** или **WSL** с ПК, используйте так:
+
+```powershell
+$env:GIT_REMOTE = "github"
+bash deploy/server-update.sh
+```
+
+или одной строкой:
+
+```powershell
+$env:GIT_REMOTE = "github"; bash deploy/server-update.sh
+```
+
+Скрипт с `systemctl` рассчитан на **VPS**; на чистом Windows без Linux-окружения его обычно не запускают.
+
 (Если systemd ещё не настроен — перезапустите процессы вручную.)
+
+### 8.5. Один запуск с ПК: GitHub + сервер
+
+Цепочка **изменили код → на GitHub → на VPS** в одном действии на **Windows (PowerShell)**:
+
+1. Скрипт **`scripts/push-and-update-server.ps1`** делает `git push` на указанный remote (по умолчанию **`github`**, ветка **`main`**), затем по **SSH** на сервере выполняет **`deploy/server-update.sh`**.
+
+2. **Самый простой запуск (из любой папки)** — файл в **корне репозитория** **`push-and-deploy.cmd`**: он сам переходит в каталог проекта и вызывает PowerShell с полным путём к `.ps1`.
+
+   В **cmd** или строке «Выполнить» (Win+R):
+
+   ```text
+   C:\tg_mini_app\push-and-deploy.cmd -SshTarget root@ВАШ_IP
+   ```
+
+   В **PowerShell** (Cursor тоже):
+
+   ```powershell
+   & C:\tg_mini_app\push-and-deploy.cmd -SshTarget root@ВАШ_IP
+   ```
+
+   Либо из каталога проекта:
+
+   ```powershell
+   cd C:\tg_mini_app
+   .\push-and-deploy.cmd -SshTarget root@ВАШ_IP
+   ```
+
+3. Проверка окружения **без push и SSH** (диагностика):
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File C:\tg_mini_app\scripts\push-and-update-server.ps1 -CheckOnly
+   ```
+
+   Должно быть: есть `.git`, в PATH есть `git`, remote с именем **`github`** (смотрите `git remote -v`; иначе укажите **`-GitRemote origin`**).
+
+4. Адрес сервера можно не повторять, если задать переменную:
+
+   ```powershell
+   $env:TG_MINI_APP_DEPLOY_SSH = "root@ВАШ_IP"
+   .\push-and-deploy.cmd
+   ```
+
+5. **Коммит при деплое:** если есть незакоммиченные файлы, скрипт **сам** делает `git add -A` и коммит с **стандартным сообщением** вида  
+   `chore(deploy): sync 2026-04-04 15:30` (дата/время с ПК). Своё описание — параметр **`-CommitMessage "..."`** (тогда сначала коммит с ним, как раньше). Чтобы **запретить** автокоммит и получить ошибку при грязном дереве (как раньше по умолчанию): **`-RequireExplicitCommit`**.
+
+6. Пример с **своим** сообщением коммита:
+
+   ```powershell
+   .\push-and-deploy.cmd -SshTarget root@ВАШ_IP -CommitMessage "описание правок"
+   ```
+
+7. Если на **сервере** `git pull` должен идти в remote не `origin`, а например `github`:
+
+   ```powershell
+   .\push-and-deploy.cmd -SshTarget root@IP -ServerGitRemote github
+   ```
+
+8. **Частые ошибки**
+
+   | Симптом | Что сделать |
+   |---------|-------------|
+   | «Файл .ps1 не существует» | Вы не в каталоге проекта и указали относительный путь. Используйте **`push-and-deploy.cmd`** или полный путь к `.ps1`. |
+   | `Remote 'github' not found` | На ПК нет remote с именем `github`. Либо `git remote add github <url>`, либо запуск с **`-GitRemote origin`**. |
+   | Нужно вручную контролировать коммиты | Запуск с **`-RequireExplicitCommit`**: без чистого дерева или **`-CommitMessage`** скрипт остановится. |
+   | `git push` / SSH просит пароль или отказ | Настройте **SSH-ключ** и доступ к GitHub; проверьте `ssh root@IP` с ПК. |
+   | `pwsh` не распознано | Не используйте `pwsh`; вызывайте **`powershell`** или **`push-and-deploy.cmd`**. |
+
+Условия: на ПК в PATH есть **git** и **ssh**; настроен **доступ по SSH** к VPS; на сервере есть клон и **`deploy/server-update.sh`**. Установленный отдельно **PowerShell 7** (`pwsh`) не обязателен.
 
 ---
 
@@ -418,7 +521,8 @@ sudo systemctl restart tg-mini-app-api.service tg-mini-app-bot.service
 | Запуск на VPS | Разделы 2, 4, 7 |
 | Почему не работают кнопки в боте | Раздел 6 + оба процесса из раздела 4 |
 | Залить правки на GitHub (ПК) | Раздел 8.2 |
-| Обновить код на сервере | Раздел 8.4 |
+| Обновить код на сервере | Раздел 8.4, `deploy/server-update.sh` |
+| ПК → GitHub → сервер одним шагом | Раздел 8.5, `push-and-deploy.cmd`, `scripts/push-and-update-server.ps1` |
 | Домен и HTTPS | nginx + certbot (ваш хостинг); `BASE_URL` в `.env` |
 
 ---
