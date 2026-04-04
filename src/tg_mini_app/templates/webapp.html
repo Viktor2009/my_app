@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="topbar">
+  <div class="topbar__left">
+    <div class="topbar__brand" aria-hidden="true">🍣</div>
+    <div class="topbar__titles">
+      <div class="topbar__name">{{ title }}</div>
+      <div class="worktime" id="worktime">11:00–23:00 · доставка</div>
+    </div>
+  </div>
+  <div class="topbar__right">
+    <a class="help" id="helpLink" href="#" rel="nofollow">Помощь</a>
+  </div>
+</header>
+
+<section class="promo-strip" aria-label="Акция">
+  <div class="promo-strip__inner">
+    <span class="promo-strip__badge">Сегодня</span>
+    <span class="promo-strip__text">Соберите заказ — согласуем с кухней и подтвердим в Telegram</span>
+  </div>
+</section>
+
+<!-- Статус заказа вне корзины: при закрытом drawer видно «в пути» / «доставлен» -->
+<div class="order-banner" id="orderBanner" hidden>
+  <div class="order-banner__text hint order-status" id="orderStatus"></div>
+  <button class="button-ghost order-banner__cancel" id="cancelOrderBtn" type="button" hidden>
+    Отменить заказ
+  </button>
+</div>
+
+<nav class="tabs" id="tabs" aria-label="Категории меню"></nav>
+
+<section class="catalog-wrap">
+  <h2 class="catalog__heading" id="catalogHeading">Меню</h2>
+  <main class="catalog">
+    <div class="grid product-grid" id="grid"></div>
+  </main>
+</section>
+
+<button class="cart-fab" id="cartFab" type="button" aria-label="Открыть корзину">
+  <span class="cart-fab__icon" aria-hidden="true">🛒</span>
+  <span class="cart-fab__main">
+    <span class="cart-fab__title">Корзина</span>
+    <span class="cart-fab__sum" id="cartSum">0 ₽</span>
+  </span>
+</button>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer__scrim" id="drawerScrim"></div>
+  <div class="drawer__panel">
+    <div class="drawer__header">
+      <div class="drawer__title">Корзина</div>
+      <button class="drawer__close" id="drawerClose" type="button">✕</button>
+    </div>
+    <div class="drawer__content">
+      <div class="cart" id="cartItems"></div>
+
+      <div class="checkout">
+        <div class="checkout__title">Оформление</div>
+        <label class="field" id="tgIdField" hidden>
+          <div class="field__label">Telegram ID (для отладки)</div>
+          <input class="field__input" id="tgId" placeholder="Например: 123456789" inputmode="numeric" />
+        </label>
+        <label class="field">
+          <div class="field__label">Адрес</div>
+          <input class="field__input" id="address" placeholder="Улица, дом, подъезд, квартира" />
+        </label>
+        <label class="field">
+          <div class="field__label">Время доставки</div>
+          <input class="field__input" id="deliveryTime" placeholder="Например: как можно быстрее / 19:30" />
+        </label>
+        <button class="primary" id="checkoutBtn" type="button">Согласовать заказ</button>
+        <div class="hint" id="checkoutHint"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

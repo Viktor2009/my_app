@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <style>
+      :root {
+        --bg: #121218;
+        --card: #1c1c26;
+        --text: #eee;
+        --muted: #9a9aa8;
+        --accent: #e6b422;
+        --border: #2a2a36;
+        --danger: #e05555;
+        --ok: #5cb85c;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+      h1 { font-size: 1.25rem; margin: 0 0 12px; }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .filters a {
+        color: var(--text);
+        text-decoration: none;
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        font-size: 12px;
+      }
+      .filters a.is-active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .flash {
+        padding: 10px 12px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      .flash--ok { background: rgba(92, 184, 92, 0.15); color: var(--ok); }
+      .flash--err { background: rgba(224, 85, 85, 0.15); color: var(--danger); }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      th, td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th { font-size: 11px; text-transform: uppercase; color: var(--muted); }
+      tr:last-child td { border-bottom: none; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+      .actions form { display: inline; }
+      button {
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #2a2a38;
+        color: var(--text);
+        font-size: 12px;
+      }
+      button.primary { border-color: var(--accent); color: var(--accent); }
+      button.danger { border-color: var(--danger); color: var(--danger); }
+      .hint { margin-top: 20px; font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Панель оператора</h1>
+
+      <div class="filters">
+        <a href="/operator-panel" class="{{ 'is-active' if not status_filter else '' }}">Все</a>
+        {% for sk in status_keys %}
+          <a
+            href="/operator-panel?status={{ sk }}"
+            class="{{ 'is-active' if status_filter == sk else '' }}"
+          >{{ status_labels[sk] }}</a>
+        {% endfor %}
+      </div>
+
+      {% if flash_ok %}
+        <div class="flash flash--ok">Действие выполнено.</div>
+      {% endif %}
+      {% if flash_err == "not_found" %}
+        <div class="flash flash--err">Заказ не найден.</div>
+      {% elif flash_err == "bad_state" %}
+        <div class="flash flash--err">Действие недоступно для текущего статуса.</div>
+      {% elif flash_err == "bad_action" %}
+        <div class="flash flash--err">Неизвестное действие.</div>
+      {% elif flash_err %}
+        <div class="flash flash--err">Ошибка.</div>
+      {% endif %}
+
+      {% if not orders %}
+        <p class="muted">Нет заказов{% if status_filter %} с этим фильтром{% endif %}.</p>
+      {% else %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Статус</th>
+              <th>Сумма</th>
+              <th>Клиент</th>
+              <th>Адрес / время</th>
+              <th>Состав</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in orders %}
+              <tr>
+                <td><strong>{{ o.id }}</strong></td>
+                <td>{{ status_labels.get(o.status, o.status) }}</td>
+                <td>{{ o.total_amount }} ₽<br /><span class="muted">{{ o.payment_type or "—" }}</span></td>
+                <td class="muted">{{ o.customer_tg_id }}</td>
+                <td>
+                  {{ o.address }}<br />
+                  <span class="muted">{{ o.delivery_time }}</span>
+                </td>
+                <td class="muted">
+                  {% set items = o.meta.get("items", []) %}
+                  {% if items %}
+                    {% for it in items[:5] %}
+                      {{ it.name }} × {{ it.qty }}{% if not loop.last %}<br />{% endif %}
+                    {% endfor %}
+                    {% if items|length > 5 %}…{% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="actions">
+                    {% if o.status == "pending_operator" %}
+                      <form method="post" action="/operator-panel/orders/{{ o.id }}/action">
+                        <input type="hidden" name="filter_status" value="{{ status_filter }}" />
+                        <input type="hidden" name="action" value="approve" />
+                        <button type="submit" class="primary">Согласовать</button>
+                      </form>
+                      <form method="post" action="/operator-panel/orders/{{ o.id }}/action">
+                        <input type="hidden" name="filter_status" value="{{ status_filter }}" />
+                        <input type="hidden" name="action" value="reject" />
+                        <button type="submit" class="danger">Отклонить</button>
+                      </form>
+                    {% elif o.status == "active" %}
+                      <form method="post" action="/operator-panel/orders/{{ o.id }}/action">
+                        <input type="hidden" name="filter_status" value="{{ status_filter }}" />
+                        <input type="hidden" name="action" value="ship" />
+                        <button type="submit">В пути</button>
+                      </form>
+                    {% elif o.status == "out_for_delivery" %}
+                      <form method="post" action="/operator-panel/orders/{{ o.id }}/action">
+                        <input type="hidden" name="filter_status" value="{{ status_filter }}" />
+                        <input type="hidden" name="action" value="delivered" />
+                        <button type="submit">Доставлен</button>
+                      </form>
+                    {% elif o.status == "awaiting_payment" %}
+                      <span class="muted">Оплата в боте</span>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+
+      <p class="hint">
+        Доступ: форма
+        <a href="/operator-panel/login" style="color: var(--accent)">/operator-panel/login</a>
+        или HTTP Basic (логин <code>operator</code>, пароль =
+        <code>OPERATOR_PANEL_TOKEN</code>).
+        <a href="/operator-panel/logout" style="color: var(--muted)">Выйти</a>.
+        Команды бота (/ship, /delivered) по-прежнему работают.
+      </p>
+    </div>
+  </body>
+</html>
