@@ -10,9 +10,3 @@ data/
 
 *.db
 *.sqlite3
-
-PLAN.md
-README.md
-SERVER_RUNBOOK.md
-docs/
-
