@@ -32,6 +32,12 @@
   --topbar-h: 56px;
   --radius-lg: 18px;
   --radius-md: 14px;
+  /*
+   * Тёмно-фиолетовый для строк «режим работы», промо-совета и «Заказ #…».
+   * Две строки: fallback без color-mix, затем адаптация к теме Telegram.
+   */
+  --line-violet: #6d28d9;
+  --line-violet: color-mix(in srgb, #4c1d95 58%, var(--text) 42%);
 }
 
 * { box-sizing: border-box; }
@@ -98,7 +104,11 @@ a { color: var(--text); }
   text-overflow: ellipsis;
 }
 
-.worktime { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.worktime {
+  font-size: 12px;
+  color: var(--line-violet);
+  margin-top: 2px;
+}
 
 .help {
   font-size: 13px;
@@ -141,7 +151,7 @@ a { color: var(--text); }
 
 .promo-strip__text {
   font-size: 13px;
-  color: var(--muted);
+  color: var(--line-violet);
   line-height: 1.35;
   flex: 1;
   min-width: 200px;
@@ -162,8 +172,7 @@ a { color: var(--text); }
   margin-top: 0;
   padding-top: 0;
   border-top: none;
-  /* Крупнее и чуть темнее основного текста витрины (не «hint»). */
-  color: color-mix(in srgb, var(--text) 78%, #000 22%);
+  color: var(--line-violet);
   font-size: 15px;
   font-weight: 600;
   line-height: 1.45;
